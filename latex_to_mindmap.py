@@ -8,8 +8,6 @@ import into tools like Xmind, EdrawMind, Markmap, Freeplane, or Obsidian.
 Usage:
     python latex_to_mindmap.py document.tex --format markdown --output mindmap.md
     python latex_to_mindmap.py paper.tex --format json --output mindmap.json
-
-Author: AI Assistant
 """
 
 import argparse
@@ -86,14 +84,51 @@ class LatexParser:
         'example', 'remark', 'note', 'proof', 'claim', 'fact'
     }
     
-    def __init__(self, tex_content: str):
+    def __init__(self, tex_content: str, base_path: Optional[Path] = None):
         self.tex_content = tex_content
         self.current_level = 2  # Start at section level
+        self.base_path = base_path or Path('.')
+        
+    def _resolve_includes(self, content: str) -> str:
+        """Recursively resolve \\input{} and \\include{} commands."""
+        def replace_input(match):
+            filename = match.group(1).strip()
+            # Add .tex extension if not present
+            if not filename.endswith('.tex'):
+                filename += '.tex'
+            
+            file_path = self.base_path / filename
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    included_content = f.read()
+                # Recursively resolve includes in the included file
+                return self._resolve_includes(included_content)
+            except FileNotFoundError:
+                print(f"Warning: Could not find included file: {file_path}", file=sys.stderr)
+                return f"% Could not include: {filename}"
+            except UnicodeDecodeError:
+                try:
+                    with open(file_path, 'r', encoding='latin-1') as f:
+                        included_content = f.read()
+                    return self._resolve_includes(included_content)
+                except Exception:
+                    print(f"Warning: Could not read included file: {file_path}", file=sys.stderr)
+                    return f"% Could not include: {filename}"
+        
+        # Replace \input{filename} and \include{filename}
+        content = re.sub(r'\\input\s*\{([^}]+)\}', replace_input, content)
+        content = re.sub(r'\\include\s*\{([^}]+)\}', replace_input, content)
+        
+        return content
         
     def parse(self) -> MindMapNode:
         """Main parsing method. Returns root mind map node."""
+        # Resolve includes first
+        content_with_includes = self._resolve_includes(self.tex_content)
+        
         # Extract document body (remove preamble)
-        body = self._extract_document_body()
+        body = self._extract_document_body(content_with_includes)
         
         # Create root node
         title = self._extract_document_title() or "LaTeX Document"
@@ -107,17 +142,15 @@ class LatexParser:
             
         return root
     
-    def _extract_document_body(self) -> str:
+    def _extract_document_body(self, content: str) -> str:
         """Extract content between \\begin{document} and \\end{document}."""
         match = re.search(r'\\begin\{document\}(.*?)\\end\{document\}', 
-                         self.tex_content, re.DOTALL)
+                         content, re.DOTALL)
         if match:
             return match.group(1)
         else:
             # If no document environment found, assume the entire content is the body
             # but remove common preamble elements
-            content = self.tex_content
-            # Remove documentclass, usepackage, title, author, date commands
             content = re.sub(r'\\documentclass.*?\n', '', content)
             content = re.sub(r'\\usepackage.*?\n', '', content)
             content = re.sub(r'\\title\{.*?\}\n?', '', content, flags=re.DOTALL)
@@ -453,7 +486,7 @@ class LatexParser:
                         'content': eq_content,
                         'start': match.start(),
                         'end': match.end(),
-                        'title': 'Key Equation'
+                        'title': ''  # Remove "Key Equation" prefix
                     })
         
         # Find theorem environments
@@ -535,16 +568,16 @@ class LatexParser:
                 if 'explanation' in element and element['explanation']:
                     # Create equation node that is both formula and expandable explanation
                     equation_node = MindMapNode(
-                        title="Key Equation",
-                        content=f"$${element['content']}$$ {element['explanation']}",
+                        title=f"$${element['content']}$$",
+                        content=element['explanation'],
                         node_type="equation_with_explanation",
                         level=section_node.level + 1
                     )
                 else:
                     # Simple equation node
                     equation_node = MindMapNode(
-                        title="Key Equation",
-                        content=f"$${element['content']}$$",
+                        title=f"$${element['content']}$$",
+                        content="",
                         node_type="equation",
                         level=section_node.level + 1
                     )
@@ -722,6 +755,7 @@ class MindMapFormatter:
     @staticmethod
     def to_markdown(root: MindMapNode, max_depth: int = 10, markmap_mode: bool = False, truncate_at: int = 100) -> str:
         """Convert mind map tree to markdown nested list."""
+        
         def format_node(node: MindMapNode, depth: int = 0) -> str:
             if depth > max_depth:
                 return ""
@@ -845,7 +879,7 @@ Examples:
             tex_content = f.read()
     
     # Parse LaTeX content
-    parser_instance = LatexParser(tex_content)
+    parser_instance = LatexParser(tex_content, base_path=input_path.parent)
     mind_map_root = parser_instance.parse()
     
     # Format output
