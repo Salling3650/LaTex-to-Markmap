@@ -1,0 +1,81 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsthm}
+
+\title{Sample Mathematical Paper}
+\author{Test Author}
+\date{\today}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+This is a sample LaTeX document to demonstrate the mind map converter. We will cover several mathematical concepts and their relationships.
+
+\section{Basic Concepts}
+
+\subsection{Linear Algebra}
+
+\begin{definition}
+A vector space $V$ over a field $F$ is a set equipped with two operations: vector addition and scalar multiplication, satisfying certain axioms.
+\end{definition}
+
+\begin{theorem}
+Every finite-dimensional vector space has a basis.
+\end{theorem}
+
+\begin{proof}
+The proof follows by induction on the dimension of the space.
+\end{proof}
+
+\subsection{Calculus}
+
+Consider the fundamental theorem of calculus:
+
+\begin{equation}
+\int_a^b f'(x) dx = f(b) - f(a)
+\end{equation}
+
+\subsubsection{Applications}
+
+Some key applications include:
+
+\begin{itemize}
+\item Computing areas under curves
+\item Solving differential equations
+\item Optimization problems
+\end{itemize}
+
+\section{Advanced Topics}
+
+\subsection{Real Analysis}
+
+\begin{definition}
+A sequence $(a_n)$ converges to $L$ if for every $\epsilon > 0$, there exists $N$ such that for all $n > N$, we have $|a_n - L| < \epsilon$.
+\end{definition}
+
+\begin{lemma}
+Every convergent sequence is bounded.
+\end{lemma}
+
+\subsection{Complex Analysis}
+
+The Cauchy integral formula states:
+
+\begin{equation}
+f(z_0) = \frac{1}{2\pi i} \oint_C \frac{f(z)}{z - z_0} dz
+\end{equation}
+
+where $C$ is a simple closed contour containing $z_0$.
+
+\section{Conclusion}
+
+This paper has presented fundamental concepts in mathematics, demonstrating the hierarchical structure that can be captured in a mind map format.
+
+\end{document}
