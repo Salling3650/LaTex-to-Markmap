@@ -135,8 +135,7 @@ class LatexParser:
         root = MindMapNode(title=title, node_type="document", level=0)
         
         if PYLATEXENC_AVAILABLE:
-            # Force use of regex fallback for better structure
-            root = self._parse_with_regex_fallback(body, root)
+            root = self._parse_with_pylatexenc(body, root)
         else:
             root = self._parse_with_regex_fallback(body, root)
             
