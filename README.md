@@ -12,10 +12,8 @@ Got a huge LaTeX paper? Turn it into an interactive mind map that you can actual
 
 ## Quick Start
 
-### Installation (one-time)
+### Installation
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
 npm install -g markmap-cli  # For HTML output
 ```

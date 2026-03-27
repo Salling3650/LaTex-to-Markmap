@@ -2,15 +2,21 @@
 
 ## Setup (One-time)
 
+### Option 1: Without virtual environment (simplest)
 ```bash
-cd /path/to/this/program
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
 npm install -g markmap-cli  # For HTML output
 ```
 
-## Usage
+### Option 2: With virtual environment (recommended for projects)
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install -g markmap-cli
+```
+
+## Basic Usage
 
 All commands follow this format:
 
@@ -18,56 +24,48 @@ All commands follow this format:
 python3 latex_to_mindmap.py YOUR_LATEX_FILE --format FORMAT --output OUTPUT_FILE
 ```
 
+**Outputs go to `outputs/` by default** if you don't specify `--output`
+
+## Examples
+
 ### Markdown (plain text structure)
 ```bash
-python3 latex_to_mindmap.py /path/to/paper.tex --format markdown --output mindmap.md
-cat mindmap.md
+python3 latex_to_mindmap.py paper.tex
+# Saves to: outputs/paper.md
 ```
 
 ### JSON (for programmatic use)
 ```bash
-python3 latex_to_mindmap.py /path/to/paper.tex --format json --output mindmap.json
+python3 latex_to_mindmap.py paper.tex --format json
+# Saves to: outputs/paper.json
 ```
 
 ### Markmap (interactive HTML - recommended!)
 ```bash
-python3 latex_to_mindmap.py /path/to/paper.tex --format markdown --markmap-mode --output mindmap.md
-markmap mindmap.md --output mindmap.html
-open mindmap.html
+python3 latex_to_mindmap.py paper.tex --markmap-mode
+markmap outputs/paper.md --output outputs/paper.html
+open outputs/paper.html
 ```
 
-## One-liner examples
-
-**Markdown:**
-```bash
-./run.sh /path/to/paper.tex --output /tmp/mindmap.md && cat /tmp/mindmap.md
-```
+## One-liner: Convert and view
 
 **Interactive HTML (best):**
 ```bash
-./run.sh /path/to/paper.tex --markmap-mode --output /tmp/mindmap.md && markmap /tmp/mindmap.md --output /tmp/mindmap.html && open /tmp/mindmap.html
+./run.sh paper.tex --markmap-mode && markmap outputs/paper.md --output outputs/paper.html && open outputs/paper.html
+```
+
+**Markdown to stdout:**
+```bash
+./run.sh paper.tex
 ```
 
 ## Tips
 
 - `--markmap-mode` creates expandable sections (best for long texts)
-- `--truncate-at 50` controls when text gets hidden in expandable menus (default: 100 chars)
+- `--truncate-at 50` controls when text gets hidden (default: 100 chars)
 - Math equations are preserved and render correctly in HTML
-- All explanatory text stays in the hierarchy (not lost!)
+- All explanatory text stays in the hierarchy
 
-## Example on your own file
-
-```bash
-# Navigate to the program
-cd /Users/frederiksallinghansen/Desktop/projects/Programming/1_Work_in_progress/LaTeX_mindmap/latex\ to\ mindmap
-source .venv/bin/activate
-
-# Convert your file
-./run.sh /path/to/your/file.tex --markmap-mode --output /tmp/mymap.md
-
-# View it
-markmap /tmp/mymap.md --output /tmp/mymap.html
-open /tmp/mymap.html
-```
+---
 
 Done! Your LaTeX paper is now an interactive mind map.
