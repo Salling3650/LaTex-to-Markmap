@@ -10,142 +10,56 @@ Got a huge LaTeX paper? Turn it into an interactive mind map that you can actual
 - Handles the usual academic stuff: theorems, proofs, definitions, etc.
 - Falls back gracefully when it hits weird LaTeX it doesn't understand
 
-## Project Structure
+## Quick Start
 
-```
-latex-to-mindmap/
-├── latex_to_mindmap.py      # Main converter script
-├── run.sh                   # Convenient run script  
-├── requirements.txt         # Python dependencies
-├── README.md               # This file
-├── examples/               # Sample LaTeX documents
-│   ├── happiness.tex       # Your happiness research
-│   └── sample_paper.tex    # Demo mathematical paper
-├── outputs/                # Generated mind maps
-│   ├── *.md               # Markdown outputs
-│   ├── *.json             # JSON outputs  
-│   └── *.html             # Interactive Markmap files
-└── .venv/                 # Python virtual environment
-```
-
-## How to use it
-
-First, install the dependencies:
+### Installation (one-time)
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+npm install -g markmap-cli  # For HTML output
 ```
 
-Then just point it at your LaTeX file:
-
+### Simple usage
 ```bash
-# Basic conversion
-python latex_to_mindmap.py paper.tex
+# Convert to markdown (saves to outputs/ by default)
+python3 latex_to_mindmap.py paper.tex
 
-# Save to a file  
-python latex_to_mindmap.py paper.tex --output mindmap.md
+# Interactive HTML (best!)
+python3 latex_to_mindmap.py paper.tex --markmap-mode
+markmap outputs/paper.md --output outputs/paper.html
+open outputs/paper.html
 
-# Make it work nicely with Markmap
-python latex_to_mindmap.py paper.tex --markmap-mode --output pretty_mindmap.md
-
-# Spit out JSON instead
-python latex_to_mindmap.py paper.tex --format json --output data.json
+# JSON output
+python3 latex_to_mindmap.py paper.tex --format json
 ```
 
-There's also a `run.sh` script if you're feeling lazy:
-```bash
-./run.sh examples/happiness.tex --markmap-mode
-```
+See [USAGE.md](USAGE.md) for detailed examples and more options.
 
-## What you get
+## How it works
 
-### Markdown output
-Perfect for Markmap or dropping into Obsidian:
+The converter:
+1. Parses your LaTeX file (including `\input` and `\include` directives)
+2. Extracts document structure (sections, subsections, paragraphs)
+3. Captures all text content, equations, theorems, and lists
+4. Builds a hierarchical tree that can be exported as:
+   - **Markdown** - for Markmap or Obsidian
+   - **JSON** - for custom tools
 
-```markdown
-# Your Amazing Paper
+## What it captures
 
-- Introduction  
-  - Why this matters
-  - What we're trying to solve
-- The Math Stuff
-  - Important Theorem: If $x > 0$ then...
-  - 📊 Explanation: This actually means...
-  - Proof: Well, obviously...
-```
+- **Document structure**: Sections, subsections, chapters, paragraphs
+- **Academic content**: Theorems, definitions, lemmas, proofs, examples
+- **Math**: Inline (`$...$`, `\(...\)`) and display (`$$...$$`, `\[...\]`) equations
+- **Text**: All explanatory text, descriptions, and content
+- **Lists**: Itemize and enumerate environments
 
-### JSON output  
-For when you want to build your own visualization:
+## Limitations
 
-```json
-{
-  "title": "Your Amazing Paper",
-  "type": "document", 
-  "children": [
-    {
-      "title": "Introduction",
-      "type": "section",
-      "children": [...]
-    }
-  ]
-}
-```
-
-## LaTeX stuff it understands
-
-### Document structure
-- Sections, subsections, all that hierarchy stuff
-- Chapters and parts if you're writing a book
-- Paragraphs and subparagraphs
-
-### Academic bits
-- Theorems, definitions, lemmas, propositions
-- Proofs (it'll try to keep them readable)
-- Equations and math environments  
-- Bulleted and numbered lists
-- Figure captions
-
-### Math
-- Inline math like $x = 2$ or \(complicated stuff\)
-- Display equations $$like this$$
-- Everything gets preserved so it renders properly
-
-## Caveats
-
-- Doesn't know about every LaTeX package ever made (covers maybe 70% of typical academic papers)
-- Won't expand your custom macros
-- Tables are tricky and might not come out great
+- Doesn't expand custom LaTeX macros (they're stripped as unknown commands)
+- Tables aren't specially handled (may not render well)
 - Some exotic LaTeX features will be ignored
-
-But hey, it beats manually copying and pasting your entire paper into a mind mapping tool.
-
-## Getting it into your mind mapping tool
-
-### Markmap
-1. Save as `.md` file
-2. Open with Markmap (online or VS Code extension)  
-3. Enjoy your interactive mind map
-
-### Obsidian
-1. Drop the `.md` file into your vault
-2. Enable MathJax in settings if you want pretty math
-3. Use graph view to see connections
-
-### Xmind/EdrawMind  
-1. Copy-paste the markdown structure
-2. Or use the JSON output with a custom importer if you're feeling ambitious
-
-### Freeplane
-1. Find a markdown-to-Freeplane converter
-2. Or just use the hierarchy as a guide for manual entry
-
-## Requirements
-
-You need Python 3.10+ and:
-```bash
-pip install pylatexenc
-```
-
-If you don't have `pylatexenc`, it'll fall back to regex parsing (which works but isn't as smart).
+- Coverage: ~70% of typical academic papers
 
 ---
 

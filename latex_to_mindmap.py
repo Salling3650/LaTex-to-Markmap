@@ -907,7 +907,7 @@ Examples:
     parser.add_argument('input', help='Input LaTeX file (.tex)')
     parser.add_argument('--format', choices=['markdown', 'json'], 
                        default='markdown', help='Output format (default: markdown)')
-    parser.add_argument('--output', '-o', help='Output file (default: stdout)')
+    parser.add_argument('--output', '-o', help='Output file (default: outputs/[input_name].[md|json])')
     parser.add_argument('--max-depth', type=int, default=10,
                        help='Maximum nesting depth for markdown (default: 10)')
     parser.add_argument('--markmap-mode', action='store_true',
@@ -946,11 +946,17 @@ Examples:
     # Write output
     if args.output:
         output_path = Path(args.output)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(output_content)
-        print(f"Mind map saved to {output_path}")
     else:
-        print(output_content)
+        # Default to outputs folder
+        output_dir = Path('outputs')
+        output_dir.mkdir(exist_ok=True)
+        input_stem = Path(args.input).stem
+        ext = 'md' if args.format == 'markdown' else 'json'
+        output_path = output_dir / f"{input_stem}.{ext}"
+    
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(output_content)
+    print(f"Mind map saved to {output_path}")
 
 
 if __name__ == "__main__":
