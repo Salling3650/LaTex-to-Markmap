@@ -180,8 +180,19 @@ class LatexParser:
             
             current_section_nodes = {level: root for level in range(7)}
             
-            for node in parsed_nodes:
+            i = 0
+            while i < len(parsed_nodes):
+                node = parsed_nodes[i]
+                # Look ahead for paragraph/subparagraph that might have a group as the next node
+                if (isinstance(node, LatexMacroNode) and node.macroname in ['paragraph', 'subparagraph']
+                    and (not node.nodeargs or len(node.nodeargs) == 0)
+                    and i + 1 < len(parsed_nodes) and isinstance(parsed_nodes[i + 1], LatexGroupNode)):
+                    # Attach the next group as the argument
+                    node.nodeargs = [parsed_nodes[i + 1]]
+                    i += 1  # Skip the group node since we've attached it
+                
                 self._process_pylatexenc_node(node, current_section_nodes, root)
+                i += 1
                 
         except Exception as e:
             warnings.warn(f"pylatexenc parsing failed: {e}. Falling back to regex.")
@@ -197,7 +208,25 @@ class LatexParser:
         elif isinstance(node, LatexEnvironmentNode):
             self._handle_environment_node(node, section_nodes)
         elif isinstance(node, LatexMathNode):
-            self._handle_math_node(node, section_nodes)
+            # Add math to section content instead of creating separate node
+            current_section = section_nodes.get(max(section_nodes.keys())) if section_nodes else None
+            if current_section:
+                math_content = self._nodes_to_text([node])
+                # Don't wrap - keep original format, will be converted during formatting
+                
+                if current_section.content:
+                    current_section.content += " " + math_content
+                else:
+                    current_section.content = math_content
+        elif isinstance(node, LatexCharsNode):
+            # Add text content to current section
+            current_section = section_nodes.get(max(section_nodes.keys())) if section_nodes else None
+            if current_section and node.chars.strip():
+                text = node.chars.strip()
+                if current_section.content:
+                    current_section.content += " " + text
+                else:
+                    current_section.content = text
         elif hasattr(node, 'nodelist') and node.nodelist:
             # Recursively process nested nodes
             for child_node in node.nodelist:
@@ -694,16 +723,25 @@ class LatexParser:
         """Clean LaTeX markup from text while preserving math expressions."""
         import re
         
-        # First, protect inline math expressions
+        # First, protect math expressions (display and inline)
         math_expressions = []
         
         def replace_math(match):
             math_expressions.append(match.group(0))
             return f"__MATH_PLACEHOLDER_{len(math_expressions)-1}__"
         
-        # Protect both $...$ and \(...\) math
-        text_protected = re.sub(r'\$([^$]+)\$', replace_math, text)
-        text_protected = re.sub(r'\\?\\\(([^)]+)\\\)', replace_math, text_protected)
+        # Protect display math: \[...\] and $$...$$
+        text_protected = re.sub(r'\\\[(.*?)\\\]', replace_math, text, flags=re.DOTALL)
+        text_protected = re.sub(r'\$\$(.*?)\$\$', replace_math, text_protected, flags=re.DOTALL)
+        # Protect inline math: $...$ and \(...\)
+        text_protected = re.sub(r'\$([^$]+)\$', replace_math, text_protected)
+        text_protected = re.sub(r'\\\((.*?)\\\)', replace_math, text_protected, flags=re.DOTALL)
+        
+        # Remove common LaTeX commands (but not math)
+        text_protected = re.sub(r'\\[a-zA-Z]+\*?\{([^}]*)\}', r'\1', text_protected)  # \command{text} -> text
+        text_protected = re.sub(r'\\[a-zA-Z]+\*?(?!\()', '', text_protected)  # Remove commands without args, but not \(
+        text_protected = re.sub(r'\{([^}]*)\}', r'\1', text_protected)  # Remove braces
+        text_protected = re.sub(r'\\\\', ' ', text_protected)  # Line breaks
         
         # Remove common LaTeX commands (but not math)
         text_protected = re.sub(r'\\[a-zA-Z]+\*?\{([^}]*)\}', r'\1', text_protected)  # \command{text} -> text
@@ -713,8 +751,11 @@ class LatexParser:
         text_protected = re.sub(r'[~]', ' ', text_protected)  # Non-breaking spaces
         text_protected = re.sub(r'\s+', ' ', text_protected)  # Multiple spaces
         
-        # Restore math expressions
+        # Restore math expressions, converting \[...\] to $$...$$ for KaTeX
         for i, math_expr in enumerate(math_expressions):
+            # Convert \[...\] to $$...$$ for KaTeX rendering
+            if math_expr.startswith('\\[') and math_expr.endswith('\\]'):
+                math_expr = '$$' + math_expr[2:-2] + '$$'
             text_protected = text_protected.replace(f"__MATH_PLACEHOLDER_{i}__", math_expr)
         
         return text_protected.strip()
@@ -766,11 +807,24 @@ class MindMapFormatter:
             title = node.title
             
             if node.content and node.content != node.title:
+                # Normalize math expressions for KaTeX rendering
+                content_clean = node.content
+                
+                # Convert \(...\) to $...$ for inline math (KaTeX prefers this)
+                content_clean = re.sub(r'\\\((.+?)\\\)', lambda m: f"${m.group(1)}$", content_clean, flags=re.DOTALL)
+                
+                # Convert \[...\] to $$...$$ for display math
+                content_clean = re.sub(r'\\\[(.+?)\\\]', lambda m: f"$${m.group(1).strip()}$$", content_clean, flags=re.DOTALL)
+                
+                # Remove newlines inside $$
+                if '$$' in content_clean:
+                    content_clean = re.sub(r'\$\$(.+?)\$\$', lambda m: f"$${m.group(1).replace(chr(10), ' ')}$$", content_clean, flags=re.DOTALL)
+                
                 # Special handling for equations with explanations first
                 if node.node_type == 'equation_with_explanation' and markmap_mode:
                     # Parse formula and explanation
-                    if '$$' in node.content:
-                        parts = node.content.split('$$')
+                    if '$$' in content_clean:
+                        parts = content_clean.split('$$')
                         if len(parts) >= 3:  # $$formula$$ explanation
                             formula = f"$${parts[1]}$$"
                             explanation = '$$'.join(parts[2:]).strip()
@@ -780,42 +834,42 @@ class MindMapFormatter:
                             else:
                                 title = f"{title} {formula}"
                         else:
-                            title = f"{title} {node.content}"
-                elif markmap_mode and len(node.content) > truncate_at:
+                            title = f"{title} {content_clean}"
+                elif markmap_mode and len(content_clean) > truncate_at:
                     # Use HTML details/summary for long content in Markmap mode
                     short_title = title if len(title) <= 50 else title[:47] + "..."
-                    if node.content.startswith('$'):
+                    if content_clean.startswith('$'):
                         # Math content - keep it visible
-                        title = f"{short_title} {node.content}"
+                        title = f"{short_title} {content_clean}"
                     elif node.node_type == 'equation_with_explanation':
                         # Special handling for equations with explanations - show formula + expandable explanation
-                        content_parts = node.content.split('$$ ', 1)
+                        content_parts = content_clean.split('$$ ', 1)
                         if len(content_parts) == 2:
                             formula = content_parts[0] + '$$'
                             explanation = content_parts[1].strip()
                             title = f"{short_title} {formula} <details><summary>📊 Explanation</summary><div style='max-width:400px;text-align:left;line-height:1.4;'>{MindMapFormatter._format_text_for_display(explanation)}</div></details>"
                         else:
                             # Fallback if parsing fails
-                            title = f"{short_title} <details><summary>📊 Details</summary><div style='max-width:400px;text-align:left;line-height:1.4;'>{MindMapFormatter._format_text_for_display(node.content.replace('\\n', ' ').strip())}</div></details>"
+                            title = f"{short_title} <details><summary>📊 Details</summary><div style='max-width:400px;text-align:left;line-height:1.4;'>{MindMapFormatter._format_text_for_display(content_clean.replace(chr(10), ' ').strip())}</div></details>"
                     else:
                         # Long text content - make it expandable with proper formatting
-                        content_clean = node.content.replace('\n', ' ').strip()
+                        content_no_newlines = content_clean.replace('\n', ' ').strip()
                         # Break long text into sentences for better readability
-                        content_formatted = MindMapFormatter._format_text_for_display(content_clean)
+                        content_formatted = MindMapFormatter._format_text_for_display(content_no_newlines)
                         # Special label for definitions merged into sections
                         summary_label = "📖 Definition" if node.node_type == 'section_with_definition' else "📖 Details"
                         title = f"{short_title} <details><summary>{summary_label}</summary><div style='max-width:400px;text-align:left;line-height:1.4;'>{content_formatted}</div></details>"
-                elif len(node.content) > 200:
-                    content_preview = node.content[:200] + "..."
-                    if not node.content.startswith('$'):
+                elif len(content_clean) > 200:
+                    content_preview = content_clean[:200] + "..."
+                    if not content_clean.startswith('$'):
                         title += f": {content_preview}"
                     else:
-                        title += f" {node.content}"
+                        title += f" {content_clean}"
                 else:
-                    if not node.content.startswith('$'):
-                        title += f": {node.content}"
+                    if not content_clean.startswith('$'):
+                        title += f": {content_clean}"
                     else:
-                        title += f" {node.content}"
+                        title += f" {content_clean}"
             
             result = f"{indent}{bullet} {title}\n"
             
