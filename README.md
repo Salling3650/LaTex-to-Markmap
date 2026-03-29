@@ -52,6 +52,16 @@ The converter:
 - **Text**: All explanatory text, descriptions, and content
 - **Lists**: Itemize and enumerate environments
 
+## Roadmap
+
+Check out our [development roadmap](ROADMAP.md) to see what features are planned:
+
+- **High Priority**: List consolidation, math rendering, document titles, graphics
+- **Medium Priority**: BibTeX citations, cross-references, footnotes
+- **Lower Priority**: Advanced equation environments, table optimization
+
+Want to see a feature? [Open an issue](../../issues) to request it!
+
 ## Limitations
 
 - Doesn't expand custom LaTeX macros (they're stripped as unknown commands)
